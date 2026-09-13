@@ -19,34 +19,91 @@ I am not sure if everything works like it's supposed to, I've only done surface-
 
 ## Install
 
-Prerequisites:
+### Easiest: download a build
 
-| OS | Install |
-|---|---|
-| Linux | `gcc make git curl unzip jq zstd` |
-| macOS | Xcode command line tools, then `brew install jq zstd` |
-| Windows | [MSYS2](https://www.msys2.org) MinGW64, then `pacman -S mingw-w64-x86_64-gcc make git curl unzip jq zstd` |
+1. Go to the [Releases page](https://github.com/Boux/m32-emu/releases) and download the
+   `.vcvplugin` file for your system.
+2. Open VCV Rack. In the menu bar choose **Help → Open user folder**.
+3. Inside, open the folder whose name starts with `plugins-`.
+4. Drag the `.vcvplugin` file into it.
+5. Quit VCV Rack and open it again.
 
-Then:
+The module appears in the browser under **M32**. Right-click empty rack space to open the browser.
+
+### Building it yourself
+
+You only need this if there is no release for your system.
+
+#### macOS
+
+1. Open **Terminal** (press `Cmd`+`Space`, type `Terminal`, press Enter).
+2. Install Apple's compiler. Paste this, press Enter, then click **Install** in the popup and wait:
+
+   ```
+   xcode-select --install
+   ```
+
+3. Install [Homebrew](https://brew.sh) if you do not already have it, then:
+
+   ```
+   brew install jq zstd
+   ```
+
+4. Download and build:
+
+   ```
+   git clone https://github.com/Boux/m32-emu.git
+   cd m32-emu
+   make sdk
+   make install
+   ```
+
+5. Quit VCV Rack and open it again.
+
+#### Windows
+
+1. Download and run the installer from [msys2.org](https://www.msys2.org). Accept the defaults.
+2. From the Start menu open **MSYS2 MINGW64**. It must be the one named MINGW64, not MSYS or UCRT64.
+3. Paste this and press Enter. If the window closes partway, reopen it and run it again:
+
+   ```
+   pacman -Syu
+   ```
+
+4. Install the build tools. Press Enter to accept when it asks:
+
+   ```
+   pacman -S --needed git make curl unzip zstd mingw-w64-x86_64-gcc mingw-w64-x86_64-jq
+   ```
+
+5. Download and build:
+
+   ```
+   git clone https://github.com/Boux/m32-emu.git
+   cd m32-emu
+   make sdk
+   make install
+   ```
+
+6. Quit VCV Rack and open it again.
+
+#### Linux
 
 ```
-git clone <this repo> && cd moog-mother32-emu
-make sdk
-make install
+# Debian/Ubuntu
+sudo apt install build-essential git curl unzip jq zstd
+# Arch
+sudo pacman -S base-devel git curl unzip jq zstd
+
+git clone https://github.com/Boux/m32-emu.git && cd m32-emu
+make sdk && make install
 ```
 
-Restart Rack. The module appears in the browser under **M32**.
+`make sdk` fetches the Rack SDK for your platform; `make install` builds and copies the plugin into
+your Rack user folder. `make test` runs the offline checks.
 
-`make sdk` downloads the Rack SDK for your platform. `make install` builds and copies the plugin to:
-
-| OS | Path |
-|---|---|
-| Linux | `~/.local/share/Rack2/plugins-lin-x64/` |
-| macOS | `~/Library/Application Support/Rack2/plugins-mac-<arch>/` |
-| Windows | `%LOCALAPPDATA%\Rack2\plugins-win-x64\` |
-
-The build number is printed on the panel and in the right-click menu, so you can tell which build
-Rack has loaded.
+The build number is printed at the bottom of the panel and in the module's right-click menu, so you
+can tell which build Rack has loaded.
 
 ## Features
 
