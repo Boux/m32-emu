@@ -90,8 +90,9 @@ void PanelControl::processGlideKnob(const PanelInput& in, const PanelTarget& t) 
 	heldRatchet = 0;
 
 	out.glideTime = glide.process(knob);
-	// Glide rate is never per-step; the knob position doubles as the step's on/off flag.
-	if (editStep >= 0)
+	// Glide rate is never per-step. Turning the knob also sets the selected step's glide flag,
+	// but merely selecting a step must not overwrite what it already holds.
+	if (editStep >= 0 && moved)
 		t.pattern->steps[editStep].glide = out.glideTime > 0.01f;
 }
 
@@ -123,9 +124,10 @@ void PanelControl::processTempoKnob(const PanelInput& in, const PanelTarget& t) 
 
 	if (editStep >= 0) {
 		tempo.release(knob);
-		t.pattern->steps[editStep].gateLength = 1 + detent(knob, TIE_GATE_LENGTH);
-		if (knob != previous.tempoKnob)
+		if (knob != previous.tempoKnob) {
+			t.pattern->steps[editStep].gateLength = 1 + detent(knob, TIE_GATE_LENGTH);
 			showReadout(Readout::GATE_LENGTH, t.pattern->steps[editStep].gateLength);
+		}
 		out.bpm = bpmFromKnob(tempo.value);
 		return;
 	}

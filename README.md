@@ -1,66 +1,81 @@
 # M32
 
-A VCV Rack 2 module that reproduces the behavior of a 60HP semi-modular analog synthesizer:
-one oscillator, a ladder filter, a 32-step sequencer and a 32-point patchbay.
+A VCV Rack 2 module that recreates the Moog Mother-32: one oscillator, a Moog ladder filter, a
+32-step sequencer and a 32-point patchbay, on a 60HP panel.
 
-The goal is behavioral parity, not circuit-level emulation. Every control, jack, normalled connection
-and sequencer rule should do what the hardware does. The audio is a clean virtual-analog model rather
-than a component simulation.
+Not affiliated with or endorsed by Moog Music. MOOG and MOTHER-32 are their trademarks.
 
-`docs/behavior-spec.md` is the reference, derived from the hardware's user manual.
+## Disclaimer
 
-## Building
+This is entirely vibe-coded. Every line was written by an LLM, working from the Mother-32 user manual.
 
-    make sdk          # download the Rack SDK this builds against (2.6.6)
-    make              # build plugin.so
-    make test         # run the offline DSP, sequencer and panel checks
-    make install      # package and install into your Rack user folder
-    make build-number # print the current build number
+It is **not** a sound-alike. The audio is a clean virtual-analog model, not a circuit simulation.
 
-## Build number
+The goal is **learning the instrument**, not replacing it. Panel layout, button combos, LED behaviour
+and sequencer rules follow the manual as closely as possible, so what you learn here should transfer
+to the real thing.
 
-Every build that follows a source change bumps a counter and prints it:
+## Install
 
-    ==> M32 build 47
+Prerequisites:
 
-The same number is printed at the bottom of the panel and repeated in the module's right-click menu
-along with the build time, so you can tell at a glance whether Rack has the build you just made.
-A build with no source changes does not bump it.
+| OS | Install |
+|---|---|
+| Linux | `gcc make git curl unzip jq zstd` |
+| macOS | Xcode command line tools, then `brew install jq zstd` |
+| Windows | [MSYS2](https://www.msys2.org) MinGW64, then `pacman -S mingw-w64-x86_64-gcc make git curl unzip jq zstd` |
 
-The counter lives in `.build-number` and the generated header in `src/generated/`, both untracked.
-It is a staleness indicator, not a release version; `plugin.json` keeps its own stable version so
-installed packages do not multiply.
+Then:
 
-`make test` links against the SDK's `libRack` and needs no Rack installation.
-`tools/screenshot.sh` renders the module in a real Rack under Xvfb; see `tools/README.md`.
+```
+git clone <this repo> && cd moog-mother32-emu
+make sdk
+make install
+```
 
-## Status
+Restart Rack. The module appears in the browser under **M32**.
 
-Working:
+`make sdk` downloads the Rack SDK for your platform. `make install` builds and copies the plugin to:
 
-- Full sound engine: oscillator (saw/pulse with PWM), noise, mixer, 24 dB/oct ladder filter in
-  low pass and high pass, VCA, attack/decay envelope with sustain switch, LFO to audio rate, glide
-- All 32 patch points with the hardware's normalling, plus the mult and the VC mixer
-- Sequencer playback: up to 32 steps, gate length, ties, rests, accents, glide per step, ratchets 1-4,
-  swing amount and swing interval, forward/reverse/pendulum/random order, hold, reset
-- 64 pattern slots and full patch persistence
-- Live keyboard play, octave selection, transposition during playback
-- The full panel editing workflow: KB and STEP modes, record with step-write, step select and edit,
-  set end step, page select, save/restore/initialize, bank and pattern selection, playback order,
-  pattern rotate, live accent, live mute and live ratchet
-- Knob catch-up, so GLIDE and TEMPO do not jump when a modifier releases them
+| OS | Path |
+|---|---|
+| Linux | `~/.local/share/Rack2/plugins-lin-x64/` |
+| macOS | `~/Library/Application Support/Rack2/plugins-mac-<arch>/` |
+| Windows | `%LOCALAPPDATA%\Rack2\plugins-win-x64\` |
 
-Modifier buttons latch, because a mouse cannot hold one button while pressing another.
-`docs/input-model.md` explains the translation and the knob multiplexing.
+The build number is printed on the panel and in the right-click menu, so you can tell which build
+Rack has loaded.
 
-Not yet built:
+## Features
 
-- The optional step-grid overlay
-- MIDI input, setup mode, and the remaining 15 ASSIGN output sources
-- External and MIDI clock sync, PPQN settings, TEMPO input modes
-- Save modes beyond Manual (Auto Save and Write Protect are setup-mode options)
+### Implemented
 
-## Naming
+- VCO with saw and pulse, pulse width modulation, 1V/oct, linear FM
+- Noise generator, mixer, external audio input
+- Moog ladder filter, 24 dB/oct low pass and high pass, self-oscillation
+- VCA, attack/decay envelope with sustain switch, LFO to audio rate, glide
+- All 32 patch points with the hardware's normalling and voltage ranges
+- Mult and voltage controlled mixer
+- 32-step sequencer: gate length, ties, rests, accents, per-step glide, ratchets 1-4
+- Swing amount and swing interval, clock division, forward/reverse/pendulum/random
+- Hold, reset, settable end step
+- KB and STEP modes, record with step-write, step select and edit
+- 64 pattern slots across 8 banks, save, restore, initialize, bank and pattern select
+- Live accent, live mute, live ratchet, live transpose
+- The full LED language, including the transient readouts and save animations
+- Everything saves with the Rack patch
 
-This is an independent implementation. It is not affiliated with or endorsed by any hardware
-manufacturer, and deliberately uses none of their trademarks.
+### Not implemented
+
+- Setup mode, all 8 pages
+- MIDI input: note, clock, CC, velocity, pitch bend, aftertouch
+- External and MIDI clock sync, PPQN settings, clock priority
+- The TEMPO input's four modes, including Step Address CV
+- 15 of the 16 ASSIGN output sources; only Sequencer Clock works
+- Auto Save and Write Protect save modes
+
+One deliberate difference: modifier buttons **latch**, because a mouse cannot hold one button while
+pressing another.
+
+Details in `docs/` — `behavior-spec.md` (what the manual says), `input-model.md` (the mouse
+translation), `not-implemented.md` (the full gap list).

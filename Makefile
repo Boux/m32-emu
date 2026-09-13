@@ -1,6 +1,23 @@
 RACK_DIR ?= ./Rack-SDK
 RACK_SDK_VERSION ?= 2.6.6
-RACK_SDK_URL := https://vcvrack.com/downloads/Rack-SDK-$(RACK_SDK_VERSION)-lin-x64.zip
+
+# Pick the SDK matching the host, so `make sdk` works on Linux, macOS and MSYS2.
+SDK_UNAME := $(shell uname -s)
+SDK_MACHINE := $(shell uname -m)
+ifeq ($(SDK_UNAME),Darwin)
+	ifeq ($(SDK_MACHINE),arm64)
+		SDK_PLATFORM := mac-arm64
+	else
+		SDK_PLATFORM := mac-x64
+	endif
+else ifeq ($(findstring MINGW,$(SDK_UNAME)),MINGW)
+	SDK_PLATFORM := win-x64
+else ifeq ($(findstring MSYS,$(SDK_UNAME)),MSYS)
+	SDK_PLATFORM := win-x64
+else
+	SDK_PLATFORM := lin-x64
+endif
+RACK_SDK_URL := https://vcvrack.com/downloads/Rack-SDK-$(RACK_SDK_VERSION)-$(SDK_PLATFORM).zip
 
 
 FLAGS +=

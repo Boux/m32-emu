@@ -261,6 +261,31 @@ static void testChangeNoteDuringRecord() {
 		std::fabs(rig.pattern.steps[0].pitch - (-1.f + 7.f / 12.f)) < 1e-5f, "step 1 intact");
 }
 
+/** Selecting a step must not overwrite what it already holds; the knobs only write when turned. */
+static void testSelectingAStepPreservesIt() {
+	Rig rig;
+	rig.pattern.steps[3].gateLength = 2;
+	rig.pattern.steps[3].glide = true;
+
+	// Park both knobs somewhere that disagrees with the stored values.
+	rig.in.tempoKnob = 0.95f;
+	rig.in.glideKnob = 0.f;
+	rig.frames(2);
+
+	rig.in.shift = true;
+	rig.frames(1);
+	rig.tapKey(3);
+	rig.in.shift = false;
+	rig.frames(4);
+
+	checkEq("selecting a step leaves its gate length alone", rig.pattern.steps[3].gateLength, 2);
+	check("selecting a step leaves its glide flag alone", rig.pattern.steps[3].glide, "still gliding");
+
+	// Turning the knob is what edits it.
+	rig.turnTempo(0.1f);
+	checkEq("turning TEMPO then sets the gate length", rig.pattern.steps[3].gateLength, 1);
+}
+
 static void testRatchetAndSwing() {
 	Rig rig;
 	rig.in.shift = true;
@@ -529,6 +554,7 @@ int main() {
 	testGateLengthCarriesForward();
 	testStepSelectAndEdit();
 	testChangeNoteDuringRecord();
+	testSelectingAStepPreservesIt();
 	testRatchetAndSwing();
 	testTempoCatchUp();
 	testLiveHolds();
