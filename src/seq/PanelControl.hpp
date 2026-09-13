@@ -11,6 +11,7 @@ static constexpr int WHITE_KEYS = 8;
 static constexpr int BLACK_KEYS = 5;
 static constexpr int KEYBOARD_KEYS = WHITE_KEYS + BLACK_KEYS;
 static constexpr int PAGES = 4;
+static constexpr int OCTAVE_LEDS = 8;
 /** The fifth black key is SET END rather than a page selector. */
 static constexpr int SET_END_KEY = WHITE_KEYS + 4;
 
@@ -24,6 +25,9 @@ static constexpr int OCTAVE_AT_ZERO_VOLTS = 5;
 int keySemitone(int key);
 
 enum class SeqMode { KB, STEP };
+
+/** Turning certain knobs lights the octave row with a readout for a moment (p25, p27, p20, p54). */
+enum class Readout { NONE, GATE_LENGTH, RATCHET, CLOCK_DIVISION, SWING_INTERVAL };
 
 /** A value that only starts following its knob again once the knob reaches it.
 The hardware needs this because GLIDE and TEMPO each drive several values, so releasing a
@@ -123,6 +127,22 @@ struct PanelControl {
 	/** Latched modifier state, so the panel lights can read it without touching params. */
 	bool shiftHeld = false;
 	bool patternHeld = false;
+	bool kbHeld = false;
+	bool stepHeld = false;
+
+	/** What the octave row is temporarily showing, and the value it is showing. */
+	Readout readout = Readout::NONE;
+	int readoutValue = 0;
+
+	/** Counts down a save, cancel or initialize animation on the octave row. */
+	enum class Animation { NONE, SAVED, CANCELLED, INITIALIZED };
+	Animation animation = Animation::NONE;
+	float animationTime = 0.f;
+
+	/** 0 at the start of an animation, 1 at its end. */
+	float animationProgress() const {
+		return 1.f - animationTime / ANIMATION_SECONDS;
+	}
 
 	PanelOutput out;
 
@@ -131,15 +151,21 @@ struct PanelControl {
 	json_t* toJson() const;
 	void fromJson(json_t* j);
 
-private:
 	/** Holding SHIFT + RUN/STOP this long starts the save process instead of toggling record. */
 	static constexpr float SAVE_HOLD_SECONDS = 1.f;
+	/** How long a knob readout stays lit after the knob stops moving. */
+	static constexpr float READOUT_SECONDS = 0.8f;
+	static constexpr float ANIMATION_SECONDS = 0.6f;
+
+private:
 
 	PanelInput previous;
 	float runStopHeldFor = 0.f;
 	bool runStopConsumed = false;
 	bool kbConsumed = false;
 	bool stepConsumed = false;
+
+	float readoutTimer = 0.f;
 
 	CatchUpKnob glide;
 	CatchUpKnob tempo;
@@ -170,6 +196,9 @@ private:
 	void advanceWriteCursor(const PanelTarget& t);
 	void takePendingAdvance(const PanelTarget& t);
 
+	void showReadout(Readout which, int value);
+	void advanceTimers(float dt);
+	void startAnimation(Animation which);
 	void selectPage(int newPage);
 	void selectStepForEdit(int step, const PanelTarget& t);
 	void writeNote(int key, const PanelInput& in, const PanelTarget& t);

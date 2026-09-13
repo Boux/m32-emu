@@ -178,13 +178,28 @@ void M32::applyPanelToSequencer() {
 	sequencer.holdHeld = panel.out.hold || holdInputTrigger.isHigh();
 }
 
-/** The patchbay drives the same transport actions as the panel buttons. */
+/** The transport jacks are level driven, not edge toggled (p56). RUN/STOP plays for as long as it
+is high, RESET sits on step 1 while it is high, and the panel buttons still win if used afterwards.
+These inputs trigger near +3.2 V and tolerate up to +15 V. */
 void M32::processTransportInputs() {
-	if (runStopInputTrigger.process(inputs[RUN_STOP_INPUT].getVoltage(), 0.1f, 1.f))
-		sequencer.running ? sequencer.stop() : sequencer.start();
-	if (resetInputTrigger.process(inputs[RESET_INPUT].getVoltage(), 0.1f, 1.f))
+	// Compare levels rather than edges: Rack's SchmittTrigger reports no edge on its first
+	// transition out of the uninitialized state, which would swallow an already-high jack.
+	runStopInputTrigger.process(inputs[RUN_STOP_INPUT].getVoltage(), GATE_LOW_VOLTS, GATE_HIGH_VOLTS);
+	const bool runHigh = runStopInputTrigger.isHigh();
+	if (runHigh && !runStopWasHigh)
+		sequencer.start();
+	else if (!runHigh && runStopWasHigh)
+		sequencer.stop();
+	runStopWasHigh = runHigh;
+
+	resetInputTrigger.process(inputs[RESET_INPUT].getVoltage(), GATE_LOW_VOLTS, GATE_HIGH_VOLTS);
+	const bool resetHigh = resetInputTrigger.isHigh();
+	if (resetHigh && !resetWasHigh)
 		sequencer.reset();
-	holdInputTrigger.process(inputs[HOLD_INPUT].getVoltage(), 0.1f, 1.f);
+	sequencer.resetHeld = resetHigh;
+	resetWasHigh = resetHigh;
+
+	holdInputTrigger.process(inputs[HOLD_INPUT].getVoltage(), GATE_LOW_VOLTS, GATE_HIGH_VOLTS);
 }
 
 void M32::processSequencer(float deltaTime) {
@@ -264,109 +279,35 @@ void M32::processUtilities() {
 	outputs[VC_MIX_OUTPUT].setVoltage(crossfade(mix1, mix2, blend));
 }
 
-/** Blink rate follows the clock while running, as the hardware's LEDs do. */
+/** All LED behaviour lives in computeLeds, which mirrors the panel's own language. */
 void M32::updateLights(float deltaTime) {
 	blinkPhase = sequencer.running ? sequencer.clock.stepPhase : std::fmod(blinkPhase + deltaTime * 4.f, 1.f);
 
-	updateOctaveLights(deltaTime);
-	updateStepLights(deltaTime);
-	updateTempoLight(deltaTime);
-	lights[MIDI_LIGHT].setBrightnessSmooth(0.f, deltaTime);
-}
+	LedInputs in;
+	in.panel = &panel;
+	in.pattern = &pattern;
+	in.sequencer = &sequencer;
+	in.octave = octave;
+	in.bank = bank;
+	in.patternIndex = patternIndex;
+	in.blinkPhase = blinkPhase;
+	in.halfRate = (sequencer.clock.stepCount % 2) == 0;
 
-void M32::updateOctaveLights(float deltaTime) {
-	float red[OCTAVE_LEDS] = {};
-	float green[OCTAVE_LEDS] = {};
-	fillOctaveLights(red, green);
+	LedState leds;
+	computeLeds(in, leds);
 
 	for (int i = 0; i < OCTAVE_LEDS; i++) {
-		lights[OCTAVE_LIGHT + i * 3 + 0].setBrightnessSmooth(red[i], deltaTime);
-		lights[OCTAVE_LIGHT + i * 3 + 1].setBrightnessSmooth(green[i], deltaTime);
+		lights[OCTAVE_LIGHT + i * 3 + 0].setBrightnessSmooth(leds.octave[i].red, deltaTime);
+		lights[OCTAVE_LIGHT + i * 3 + 1].setBrightnessSmooth(leds.octave[i].green, deltaTime);
 		lights[OCTAVE_LIGHT + i * 3 + 2].setBrightnessSmooth(0.f, deltaTime);
 	}
-}
-
-/** Red is the keyboard octave, green the pattern page or location, yellow the bank or ratchet.
-While a step is edited, LEDs 5 to 8 show its glide, ratchet, accent and rest. */
-void M32::fillOctaveLights(float* red, float* green) const {
-	const bool blinkOn = blinkPhase < 0.5f;
-
-	if (panel.saving) {
-		const bool showBank = panel.patternHeld;
-		const int index = showBank ? panel.saveBank : panel.saveIndex;
-		green[index] = blinkOn ? 1.f : 0.f;
-		red[index] = showBank ? green[index] : 0.f;
-		return;
-	}
-
-	if (panel.editStep >= 0) {
-		const Step& step = pattern.steps[panel.editStep];
-		green[panel.page] = 1.f;
-		green[4] = step.glide ? 1.f : 0.f;
-		green[5] = step.ratchet > MIN_RATCHET ? 1.f : 0.f;
-		green[6] = step.accent ? 1.f : 0.f;
-		green[7] = step.rest ? 1.f : 0.f;
-		red[octave - 1] = 0.4f;
-		return;
-	}
-
-	if (panel.shiftHeld && panel.out.liveRatchet > 0) {
-		for (int i = 0; i < panel.out.liveRatchet; i++) {
-			red[i] = 1.f;
-			green[i] = 1.f;
-		}
-		return;
-	}
-
-	if (panel.patternHeld) {
-		const bool showBank = panel.shiftHeld;
-		const int index = showBank ? bank : patternIndex;
-		green[index] = 1.f;
-		red[index] = showBank ? 1.f : 0.f;
-		return;
-	}
-
-	red[octave - 1] = 1.f;
-	if (panel.recording)
-		green[panel.page] = 1.f;
-}
-
-void M32::updateStepLights(float deltaTime) {
 	for (int i = 0; i < WHITE_KEYS; i++)
-		lights[STEP_LIGHT + i].setBrightnessSmooth(stepBrightness(panel.page * WHITE_KEYS + i), deltaTime);
-}
+		lights[STEP_LIGHT + i].setBrightnessSmooth(leds.step[i], deltaTime);
 
-float M32::stepBrightness(int step) const {
-	if (step == panel.editStep)
-		return blinkPhase < 0.5f ? 1.f : 0.f;
-	if (step == pattern.endStep)
-		return blinkPhase < 0.25f ? 0.7f : 0.f;
-	if (sequencer.running && step == sequencer.currentStep)
-		return 1.f;
-	if (step > pattern.endStep)
-		return 0.f;
-	return pattern.steps[step].rest ? 0.f : 0.06f;
-}
-
-/** Solid yellow while recording, alternating while editing a step, blinking red while running. */
-void M32::updateTempoLight(float deltaTime) {
-	float red = 0.f;
-	float green = 0.f;
-
-	if (panel.recording) {
-		red = green = 1.f;
-	}
-	else if (panel.editStep >= 0) {
-		red = 1.f;
-		green = blinkPhase < 0.5f ? 1.f : 0.f;
-	}
-	else if (sequencer.running) {
-		red = blinkPhase < 0.5f ? 1.f : 0.f;
-	}
-
-	lights[TEMPO_LIGHT + 0].setBrightnessSmooth(red, deltaTime);
-	lights[TEMPO_LIGHT + 1].setBrightnessSmooth(green, deltaTime);
+	lights[TEMPO_LIGHT + 0].setBrightnessSmooth(leds.tempo.red, deltaTime);
+	lights[TEMPO_LIGHT + 1].setBrightnessSmooth(leds.tempo.green, deltaTime);
 	lights[TEMPO_LIGHT + 2].setBrightnessSmooth(0.f, deltaTime);
+	lights[MIDI_LIGHT].setBrightnessSmooth(0.f, deltaTime);
 }
 
 void M32::onSampleRateChange(const SampleRateChangeEvent& e) {

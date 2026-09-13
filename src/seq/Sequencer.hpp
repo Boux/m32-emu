@@ -29,6 +29,8 @@ struct Sequencer {
 	/** Zero means use each step's stored ratchet count. */
 	int liveRatchet = 0;
 	bool holdHeld = false;
+	/** While the RESET jack is high the pattern sits on step 1 and repeats it (p56). */
+	bool resetHeld = false;
 	float transpose = 0.f;
 
 	int currentStep = 0;
@@ -86,8 +88,13 @@ private:
 		const Step& leaving = pattern.steps[currentStep];
 		const bool tiedIntoNext = advance && leaving.isTied() && !leaving.rest;
 
-		if (advance)
+		if (resetHeld) {
+			currentStep = 0;
+			pendulumDirection = 1;
+		}
+		else if (advance) {
 			currentStep = nextStep(pattern);
+		}
 
 		ratchetSlot = 0;
 

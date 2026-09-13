@@ -3,12 +3,11 @@
 #include "dsp/Voice.hpp"
 #include "seq/Sequencer.hpp"
 #include "seq/PanelControl.hpp"
+#include "seq/PanelLeds.hpp"
 
 using namespace rack;
 
 namespace m32 {
-
-static constexpr int OCTAVE_LEDS = 8;
 
 struct M32 : Module {
 	enum ParamId {
@@ -124,6 +123,12 @@ struct M32 : Module {
 	void dataFromJson(json_t* rootJ) override;
 
 private:
+	/** The transport jacks trigger at about +3.2 V and tolerate up to +15 V (p56). */
+	static constexpr float GATE_LOW_VOLTS = 1.f;
+	static constexpr float GATE_HIGH_VOLTS = 3.2f;
+
+	bool runStopWasHigh = false;
+	bool resetWasHigh = false;
 	dsp::SchmittTrigger gateInputTrigger;
 	dsp::SchmittTrigger runStopInputTrigger;
 	dsp::SchmittTrigger resetInputTrigger;
@@ -144,11 +149,6 @@ private:
 	void updateLights(float deltaTime);
 	void processUtilities();
 
-	void updateOctaveLights(float deltaTime);
-	void updateStepLights(float deltaTime);
-	void updateTempoLight(float deltaTime);
-	void fillOctaveLights(float* red, float* green) const;
-	float stepBrightness(int step) const;
 
 	float keyPitch(int key) const;
 	float transposeFor(int key) const;

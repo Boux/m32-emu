@@ -20,6 +20,12 @@ static void checkNear(const char* name, float actual, float expected, float tole
 	check(name, std::fabs(actual - expected) <= tolerance, detail);
 }
 
+static void checkEq(const char* name, int actual, int expected) {
+	char detail[96];
+	snprintf(detail, sizeof(detail), "got %d, expected %d", actual, expected);
+	check(name, actual == expected, detail);
+}
+
 static const float SR = 48000.f;
 
 /** Drives the real module the way Rack does. */
@@ -160,6 +166,50 @@ static void testTransposeLatches() {
 	checkNear("transposition holds after the key is released", rig.sawHz(), untransposed * 2.f, 6.f);
 }
 
+/** p56: these jacks are level driven. A high level runs, a low level stops, and it is not a toggle. */
+static void testTransportJacksAreLevelDriven() {
+	Harness rig;
+	auto jack = [&](int input, float volts) {
+		rig.module.inputs[input].setVoltage(volts);
+		rig.frames(32);
+	};
+
+	jack(M32::RUN_STOP_INPUT, 5.f);
+	check("a high RUN/STOP jack runs the sequencer", rig.running(), "running");
+	jack(M32::RUN_STOP_INPUT, 0.f);
+	check("a low RUN/STOP jack stops it", !rig.running(), "stopped");
+	jack(M32::RUN_STOP_INPUT, 5.f);
+	check("high again runs it rather than toggling off", rig.running(), "running");
+
+	// RESET high parks the pattern on step 1 and repeats it.
+	rig.frames(int(SR * 0.4f));
+	jack(M32::RESET_INPUT, 5.f);
+	rig.frames(int(SR * 0.6f));
+	checkEq("a high RESET jack holds the pattern on step 1", rig.module.sequencer.currentStep, 0);
+
+	jack(M32::RESET_INPUT, 0.f);
+	rig.frames(int(SR * 0.6f));
+	check("releasing RESET lets it advance again", rig.module.sequencer.currentStep != 0, "advancing");
+
+	// HOLD high repeats whatever step is current.
+	const int held = rig.module.sequencer.currentStep;
+	jack(M32::HOLD_INPUT, 5.f);
+	rig.frames(int(SR * 0.6f));
+	checkEq("a high HOLD jack repeats the current step", rig.module.sequencer.currentStep, held);
+}
+
+/** p56: the transport jacks need about +3.2 V, so a 2 V signal must be ignored. */
+static void testTransportJackThreshold() {
+	Harness rig;
+	rig.module.inputs[M32::RUN_STOP_INPUT].setVoltage(2.f);
+	rig.frames(32);
+	check("2 V is below the transport threshold", !rig.running(), "ignored");
+
+	rig.module.inputs[M32::RUN_STOP_INPUT].setVoltage(5.f);
+	rig.frames(32);
+	check("5 V crosses it", rig.running(), "accepted");
+}
+
 static void testOctaveButtonsMoveKeyboard() {
 	Harness rig;
 	rig.click(M32::STEP_PARAM);
@@ -177,6 +227,8 @@ int main() {
 	testKeysPlayAfterStopping();
 	testTransposeWhileRunning();
 	testTransposeLatches();
+	testTransportJacksAreLevelDriven();
+	testTransportJackThreshold();
 	testOctaveButtonsMoveKeyboard();
 
 	printf("\n%s (%d failures)\n\n", failures == 0 ? "all checks passed" : "CHECKS FAILED", failures);

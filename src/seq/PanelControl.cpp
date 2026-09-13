@@ -34,6 +34,9 @@ void PanelControl::process(const PanelInput& in, const PanelTarget& t) {
 	out.liveRatchet = 0;
 	shiftHeld = in.shift;
 	patternHeld = in.patternButton;
+	kbHeld = in.kb;
+	stepHeld = in.step;
+	advanceTimers(in.dt);
 
 	processKnobs(in, t);
 	processLiveHolds(in);
@@ -65,6 +68,7 @@ void PanelControl::processGlideKnob(const PanelInput& in, const PanelTarget& t) 
 			return;
 		t.pattern->timing.swingInterval = NoteLength(detent(knob, 8));
 		t.pattern->timing.swingForm = formForArrows(in.kb, in.step);
+		showReadout(Readout::SWING_INTERVAL, detent(knob, 8));
 		kbConsumed = kbConsumed || in.kb;
 		stepConsumed = stepConsumed || in.step;
 		return;
@@ -72,8 +76,10 @@ void PanelControl::processGlideKnob(const PanelInput& in, const PanelTarget& t) 
 
 	if (in.shift) {
 		glide.release(knob);
-		if (moved)
+		if (moved) {
 			heldRatchet = 1 + detent(knob, MAX_RATCHET);
+			showReadout(Readout::RATCHET, heldRatchet);
+		}
 		if (editStep >= 0 && moved)
 			t.pattern->steps[editStep].ratchet = heldRatchet;
 		if (editStep < 0)
@@ -99,6 +105,7 @@ void PanelControl::processTempoKnob(const PanelInput& in, const PanelTarget& t) 
 		if (knob != previous.tempoKnob) {
 			t.pattern->timing.clockDivision = NoteLength(detent(knob, 8));
 			t.pattern->timing.clockForm = formForArrows(in.kb, in.step);
+			showReadout(Readout::CLOCK_DIVISION, detent(knob, 8));
 			kbConsumed = kbConsumed || in.kb;
 			stepConsumed = stepConsumed || in.step;
 		}
@@ -117,6 +124,8 @@ void PanelControl::processTempoKnob(const PanelInput& in, const PanelTarget& t) 
 	if (editStep >= 0) {
 		tempo.release(knob);
 		t.pattern->steps[editStep].gateLength = 1 + detent(knob, TIE_GATE_LENGTH);
+		if (knob != previous.tempoKnob)
+			showReadout(Readout::GATE_LENGTH, t.pattern->steps[editStep].gateLength);
 		out.bpm = bpmFromKnob(tempo.value);
 		return;
 	}
@@ -156,8 +165,10 @@ void PanelControl::processRunStop(const PanelInput& in, const PanelTarget& t) {
 	if (saving) {
 		if (in.shift)
 			commitSave(t);
-		else
+		else {
 			saving = false;
+			startAnimation(Animation::CANCELLED);
+		}
 		return;
 	}
 
@@ -203,6 +214,7 @@ void PanelControl::processResetAccent(const PanelInput& in, const PanelTarget& t
 	}
 	if (in.shift && in.patternButton) {
 		t.pattern->initialize();
+		startAnimation(Animation::INITIALIZED);
 		return;
 	}
 	if (in.patternButton) {
@@ -369,6 +381,27 @@ void PanelControl::soloArrow(int direction, const PanelInput& in, const PanelTar
 	*t.octave = clamp(*t.octave + direction, MIN_OCTAVE, MAX_OCTAVE);
 }
 
+void PanelControl::showReadout(Readout which, int value) {
+	readout = which;
+	readoutValue = value;
+	readoutTimer = READOUT_SECONDS;
+}
+
+void PanelControl::startAnimation(Animation which) {
+	animation = which;
+	animationTime = ANIMATION_SECONDS;
+}
+
+void PanelControl::advanceTimers(float dt) {
+	readoutTimer = std::max(readoutTimer - dt, 0.f);
+	if (readoutTimer <= 0.f)
+		readout = Readout::NONE;
+
+	animationTime = std::max(animationTime - dt, 0.f);
+	if (animationTime <= 0.f)
+		animation = Animation::NONE;
+}
+
 void PanelControl::selectPage(int newPage) {
 	if (page == newPage && !pageChasing) {
 		pageChasing = true;
@@ -435,6 +468,7 @@ void PanelControl::loadPattern(const PanelTarget& t) {
 }
 
 void PanelControl::commitSave(const PanelTarget& t) {
+	startAnimation(Animation::SAVED);
 	t.memory->at(saveBank, saveIndex) = *t.pattern;
 	*t.bank = saveBank;
 	*t.patternIndex = saveIndex;

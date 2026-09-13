@@ -37,16 +37,22 @@ build-number: $(BUILD_INFO)
 .PHONY: build-number
 
 # Offline DSP checks. Runs without a Rack installation, linking the SDK's libRack.
-test: build/dsp_test build/seq_test build/panel_test build/module_test
+test: build/dsp_test build/seq_test build/panel_test build/led_test build/module_test
 	@./build/dsp_test
 	@./build/seq_test
 	@./build/panel_test
+	@./build/led_test
 	@./build/module_test
 
-build/module_test: test/module_test.cpp $(BUILD_INFO) $(wildcard src/*.hpp src/*/*.hpp) src/M32.cpp src/seq/Pattern.cpp src/seq/PanelControl.cpp
+build/led_test: test/led_test.cpp $(wildcard src/seq/*.hpp) src/seq/Pattern.cpp src/seq/PanelControl.cpp src/seq/PanelLeds.cpp
 	@mkdir -p build
 	$(CXX) -std=c++11 -O2 -I$(RACK_DIR)/include -I$(RACK_DIR)/dep/include \
-		-o $@ $< src/M32.cpp src/seq/Pattern.cpp src/seq/PanelControl.cpp -L$(RACK_DIR) -lRack -Wl,-rpath,$(RACK_DIR)
+		-o $@ $< src/seq/Pattern.cpp src/seq/PanelControl.cpp src/seq/PanelLeds.cpp -L$(RACK_DIR) -lRack -Wl,-rpath,$(RACK_DIR)
+
+build/module_test: test/module_test.cpp $(BUILD_INFO) $(wildcard src/*.hpp src/*/*.hpp) src/M32.cpp src/seq/Pattern.cpp src/seq/PanelControl.cpp src/seq/PanelLeds.cpp
+	@mkdir -p build
+	$(CXX) -std=c++11 -O2 -I$(RACK_DIR)/include -I$(RACK_DIR)/dep/include \
+		-o $@ $< src/M32.cpp src/seq/Pattern.cpp src/seq/PanelControl.cpp src/seq/PanelLeds.cpp -L$(RACK_DIR) -lRack -Wl,-rpath,$(RACK_DIR)
 
 build/dsp_test: test/dsp_test.cpp $(wildcard src/dsp/*.hpp)
 	@mkdir -p build
