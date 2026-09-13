@@ -15,6 +15,8 @@ The intention is **not** to re-create the exact sound of the original.
 
 I made this so I could have a way to learn how the instrument works and practice with it without having the need to physically get one.
 
+I am not sure if everything works like it's supposed to, I've only done surface-level testing.
+
 ## Install
 
 Prerequisites:
