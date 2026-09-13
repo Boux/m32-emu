@@ -9,11 +9,9 @@ Not affiliated with or endorsed by Moog Music. MOOG and MOTHER-32 are their trad
 
 This is entirely vibe-coded. Every line was written by an LLM, working from the Mother-32 user manual.
 
-It is **not** a sound-alike. The audio is a clean virtual-analog model, not a circuit simulation.
+The intention is **not** to re-create the exact sound of the original.
 
-The goal is **learning the instrument**, not replacing it. Panel layout, button combos, LED behaviour
-and sequencer rules follow the manual as closely as possible, so what you learn here should transfer
-to the real thing.
+I made this so I could have a way to learn how the instrument works and practice with it without having the need to physically get one.
 
 ## Install
 
