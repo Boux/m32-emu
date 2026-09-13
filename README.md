@@ -3,7 +3,9 @@
 A VCV Rack 2 module that recreates the Moog Mother-32: one oscillator, a Moog ladder filter, a
 32-step sequencer and a 32-point patchbay, on a 60HP panel.
 
-Not affiliated with or endorsed by Moog Music. MOOG and MOTHER-32 are their trademarks.
+**Not affiliated with or endorsed by Moog Music. MOOG and MOTHER-32 are their trademarks.**
+
+https://github.com/user-attachments/assets/4c020a8d-e9ab-4dd4-b65a-432e8bfc305f
 
 ## Disclaimer
 
