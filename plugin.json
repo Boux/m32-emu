@@ -1,0 +1,17 @@
+{
+  "slug": "M32",
+  "name": "M32",
+  "version": "2.0.0",
+  "license": "GPL-3.0-or-later",
+  "brand": "M32",
+  "author": "",
+  "description": "Behavioral model of a 60HP semi-modular analog synthesizer voice with a 32-step sequencer and 32-point patchbay.",
+  "modules": [
+    {
+      "slug": "M32",
+      "name": "M32",
+      "description": "Semi-modular monosynth voice, 32-step sequencer, 32-point patchbay.",
+      "tags": ["Synth voice", "Sequencer", "Oscillator", "Filter", "Polyphonic"]
+    }
+  ]
+}

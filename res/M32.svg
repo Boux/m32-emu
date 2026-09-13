@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="304.8mm" height="128.5mm" viewBox="0 0 304.8 128.5">
+  <rect x="0" y="0" width="304.8" height="128.5" fill="#17181a"/>
+  <rect x="0" y="0" width="304.8" height="1.2" fill="#0d0e0f"/>
+  <rect x="0" y="127.3" width="304.8" height="1.2" fill="#0d0e0f"/>
+
+  <!-- synth section / patchbay divider -->
+  <rect x="215.5" y="6" width="0.4" height="116.5" fill="#3a3d42"/>
+  <!-- synth section / sequencer divider -->
+  <rect x="6" y="88.5" width="209.5" height="0.4" fill="#3a3d42"/>
+
+  <!-- patchbay ground -->
+  <rect x="219" y="6" width="80.5" height="116.5" rx="1.5" fill="#1e2023"/>
+
+  <!-- sequencer ground -->
+  <rect x="6" y="91.5" width="209.5" height="31" rx="1.5" fill="#1e2023"/>
+</svg>

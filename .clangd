@@ -1,0 +1,6 @@
+CompileFlags:
+  Add:
+    - -std=c++11
+    - -I./Rack-SDK/include
+    - -I./Rack-SDK/dep/include
+    - -DARCH_LIN
