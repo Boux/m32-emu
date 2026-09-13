@@ -259,7 +259,8 @@ void M32::processUtilities() {
 
 	const float mix1 = inputs[MIX_1_INPUT].getNormalVoltage(0.f);
 	const float mix2 = inputs[MIX_2_INPUT].getNormalVoltage(5.f);
-	const float blend = clamp(params[VC_MIX_PARAM].getValue() + inputs[VC_MIX_CTRL_INPUT].getVoltage() / 5.f, 0.f, 1.f);
+	// A centred VC MIX knob is swept end to end by -5 V to +5 V (p50).
+	const float blend = clamp(params[VC_MIX_PARAM].getValue() + inputs[VC_MIX_CTRL_INPUT].getVoltage() / 10.f, 0.f, 1.f);
 	outputs[VC_MIX_OUTPUT].setVoltage(crossfade(mix1, mix2, blend));
 }
 

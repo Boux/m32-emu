@@ -1,6 +1,7 @@
 #include <rack.hpp>
 #include <cstdio>
 #include <cmath>
+#include <vector>
 #include "../src/dsp/Voice.hpp"
 
 using namespace rack;
@@ -147,7 +148,10 @@ static void testInputSaturation() {
 	};
 
 	checkNear("small signals pass at unity gain", gainAt(0.05f), 1.f, 0.05f);
-	check("loud signals compress", gainAt(3.f) < 0.6f, "saturated");
+	check("gain falls as level rises", gainAt(3.f) < gainAt(1.f) && gainAt(1.f) < gainAt(0.05f), "compressive");
+	char detail[96];
+	snprintf(detail, sizeof(detail), "x1 %.2f, x3 %.2f, x8 %.2f", gainAt(1.f), gainAt(3.f), gainAt(8.f));
+	check("very loud signals compress hard", gainAt(8.f) < 0.8f, detail);
 }
 
 static void testSelfOscillation() {
@@ -159,11 +163,16 @@ static void testSelfOscillation() {
 		filter.process(i < 10 ? 0.5f : 0.f);
 
 	std::vector<float> out;
+	float peak = 0.f;
 	for (int i = 0; i < 48000; i++) {
 		filter.process(0.f);
 		out.push_back(filter.lowPass);
+		peak = std::max(peak, std::fabs(filter.lowPass));
 	}
-	check("ladder self-oscillates past k=4", rms(out) > 0.05f, "sustained output");
+	char detail[96];
+	snprintf(detail, sizeof(detail), "rms %.3f, peak %.3f", rms(out), peak);
+	// The manual calls a self-oscillating filter a sound source, and puts the VCF jack near +/-5 V.
+	check("self-oscillation reaches a usable level", rms(out) > 0.3f && peak < 1.2f, detail);
 }
 
 static void testEnvelopeTiming() {
@@ -255,6 +264,110 @@ static void testVoicePitchTracking() {
 	checkNear("-1 V plays one octave down", pitchOf(-1.f), 130.8f, 2.f);
 }
 
+/** p47-50: with a knob centred, -5 V to +5 V must sweep that control end to end.
+So a centred knob plus 5 V has to land in the same place as the knob turned fully up. */
+static void testCvReachesTheSameAsTheKnob() {
+	auto filterLevel = [](float resonanceKnob, float resonanceCv) {
+		Voice voice;
+		voice.vcaModeIsOn = true;
+		voice.cutoffKnob = 0.55f;
+		voice.resonanceKnob = resonanceKnob;
+		voice.resonanceCv = resonanceCv;
+		std::vector<float> out;
+		for (int i = 0; i < int(SR * 0.5f); i++) {
+			voice.process(DT, SR);
+			if (i > int(SR * 0.25f))
+				out.push_back(voice.vcfOut);
+		}
+		return rms(out);
+	};
+
+	const float knobFull = filterLevel(1.f, 0.f);
+	const float centrePlusFive = filterLevel(0.5f, 5.f);
+	const float knobZero = filterLevel(0.f, 0.f);
+	const float centreMinusFive = filterLevel(0.5f, -5.f);
+
+	checkNear("centred resonance plus 5 V equals resonance fully up", centrePlusFive, knobFull, knobFull * 0.02f);
+	checkNear("centred resonance minus 5 V equals resonance fully down", centreMinusFive, knobZero, knobZero * 0.02f);
+
+	auto mixLevel = [](float mixKnob, float mixCv) {
+		Voice voice;
+		voice.vcaModeIsOn = true;
+		voice.cutoffKnob = 1.f;
+		voice.mixKnob = mixKnob;
+		voice.mixCv = mixCv;
+		voice.extAudioConnected = true;
+		voice.extAudio = 5.f; // steady DC, so the ext share shows up as a DC offset
+		double sum = 0.0;
+		const int frames = int(SR * 0.3f);
+		for (int i = 0; i < frames; i++) {
+			voice.process(DT, SR);
+			sum += voice.vcfOut;
+		}
+		return float(sum / frames);
+	};
+
+	checkNear("centred mix plus 5 V equals mix fully up", mixLevel(0.5f, 5.f), mixLevel(1.f, 0.f), 0.05f);
+	checkNear("centred mix minus 5 V equals mix fully down", mixLevel(0.5f, -5.f), mixLevel(0.f, 0.f), 0.05f);
+	check("and those two ends are actually different",
+		std::fabs(mixLevel(1.f, 0.f) - mixLevel(0.f, 0.f)) > 1.f, "mix does something");
+}
+
+/** p47: the VCA CV jack sums with the ON/EG switch, so patching 0 V must change nothing. */
+static void testVcaCvSums() {
+	auto level = [](bool connected, float cv) {
+		Voice voice;
+		voice.vcaModeIsOn = true;
+		voice.volumeKnob = 1.f;
+		voice.vcaCvConnected = connected;
+		voice.vcaCv = cv;
+		std::vector<float> out;
+		for (int i = 0; i < int(SR * 0.3f); i++) {
+			voice.process(DT, SR);
+			if (i > int(SR * 0.15f))
+				out.push_back(voice.vcaOut);
+		}
+		return rms(out);
+	};
+
+	const float unpatched = level(false, 0.f);
+	checkNear("a patched 0 V leaves the level alone", level(true, 0.f), unpatched, unpatched * 0.02f);
+	check("negative CV closes the VCA in ON mode", level(true, -5.f) < unpatched * 0.02f, "silenced");
+}
+
+/** p53: the EG jack swings 0 to +7.5 V. */
+/** Resonance at maximum must stay bounded rather than running away. */
+static void testFilterStaysBounded() {
+	Voice voice;
+	voice.vcaModeIsOn = true;
+	voice.resonanceKnob = 1.f;
+	voice.volumeKnob = 1.f;
+
+	float peak = 0.f;
+	for (int sweep = 0; sweep < 20; sweep++) {
+		voice.cutoffKnob = sweep / 19.f;
+		for (int i = 0; i < int(SR * 0.1f); i++) {
+			voice.process(DT, SR);
+			peak = std::max(peak, std::fabs(voice.vcaOut));
+		}
+	}
+
+	char detail[96];
+	snprintf(detail, sizeof(detail), "peak %.2f V across a full cutoff sweep", peak);
+	check("full resonance stays bounded at every cutoff", std::isfinite(peak) && peak < 30.f, detail);
+}
+
+static void testEnvelopeOutputRange() {
+	Voice voice;
+	voice.sustainIsOn = true;
+	voice.attackKnob = 0.f;
+	voice.gate = true;
+	for (int i = 0; i < int(SR * 0.2f); i++)
+		voice.process(DT, SR);
+
+	checkNear("the EG output tops out at 7.5 V", voice.egOut, 7.5f, 0.05f);
+}
+
 int main() {
 	random::init();
 
@@ -269,6 +382,10 @@ int main() {
 	testSustainOffRetriggers();
 	testVoiceProducesAudio();
 	testVoicePitchTracking();
+	testCvReachesTheSameAsTheKnob();
+	testVcaCvSums();
+	testFilterStaysBounded();
+	testEnvelopeOutputRange();
 
 	printf("\n%s (%d failures)\n\n", failures == 0 ? "all checks passed" : "CHECKS FAILED", failures);
 	return failures == 0 ? 0 : 1;

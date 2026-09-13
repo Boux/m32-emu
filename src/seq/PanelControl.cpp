@@ -16,6 +16,13 @@ static float bpmFromKnob(float knob) {
 	return rescale(knob, 0.f, 1.f, Clock::MIN_BPM, Clock::MAX_BPM);
 }
 
+/** KB gives dotted values, STEP triplet, both together straight (p20, p54). */
+static NoteForm formForArrows(bool kb, bool step) {
+	if (kb && step)
+		return NoteForm::STRAIGHT;
+	return kb ? NoteForm::DOTTED : NoteForm::TRIPLET;
+}
+
 /** Splits a knob's travel into n equal detents. */
 static int detent(float knob, int count) {
 	return clamp(int(knob * float(count)), 0, count - 1);
@@ -57,8 +64,7 @@ void PanelControl::processGlideKnob(const PanelInput& in, const PanelTarget& t) 
 		if (!moved)
 			return;
 		t.pattern->timing.swingInterval = NoteLength(detent(knob, 8));
-		t.pattern->timing.swingForm = (in.kb && in.step) ? NoteForm::STRAIGHT
-			: (in.kb ? NoteForm::DOTTED : NoteForm::TRIPLET);
+		t.pattern->timing.swingForm = formForArrows(in.kb, in.step);
 		kbConsumed = kbConsumed || in.kb;
 		stepConsumed = stepConsumed || in.step;
 		return;
@@ -83,9 +89,22 @@ void PanelControl::processGlideKnob(const PanelInput& in, const PanelTarget& t) 
 		t.pattern->steps[editStep].glide = out.glideTime > 0.01f;
 }
 
-/** TEMPO means swing amount under SHIFT, gate length while editing a step, and tempo otherwise. */
+/** TEMPO sets the clock division under the arrows, swing amount under SHIFT, gate length while
+editing a step, and tempo otherwise (p54). */
 void PanelControl::processTempoKnob(const PanelInput& in, const PanelTarget& t) {
 	const float knob = in.tempoKnob;
+
+	if (in.kb || in.step) {
+		tempo.release(knob);
+		if (knob != previous.tempoKnob) {
+			t.pattern->timing.clockDivision = NoteLength(detent(knob, 8));
+			t.pattern->timing.clockForm = formForArrows(in.kb, in.step);
+			kbConsumed = kbConsumed || in.kb;
+			stepConsumed = stepConsumed || in.step;
+		}
+		out.bpm = bpmFromKnob(tempo.value);
+		return;
+	}
 
 	if (in.shift) {
 		tempo.release(knob);

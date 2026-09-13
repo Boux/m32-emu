@@ -120,6 +120,40 @@ static void testHeldArrowDoesNotChangeOctave() {
 		rig.pattern.timing.swingForm == NoteForm::DOTTED, "dotted");
 }
 
+/** The arrows plus TEMPO set the clock division; the arrows plus GLIDE set the swing interval. */
+static void testClockDivisionAndSwingInterval() {
+	Rig rig;
+	rig.in.kb = true;
+	rig.frames(2);
+	rig.turnTempo(0.7f);
+	rig.in.kb = false;
+	rig.frames(2);
+	check("KB + TEMPO picks a dotted clock division",
+		rig.pattern.timing.clockForm == NoteForm::DOTTED, "dotted");
+	checkEq("and does not move the octave", rig.octave, 4);
+
+	const float bpmBefore = rig.panel.out.bpm;
+	rig.in.step = true;
+	rig.frames(2);
+	rig.turnTempo(0.3f);
+	rig.in.step = false;
+	rig.frames(2);
+	check("STEP + TEMPO picks a triplet clock division",
+		rig.pattern.timing.clockForm == NoteForm::TRIPLET, "triplet");
+	check("setting the clock division does not change the tempo",
+		std::fabs(rig.panel.out.bpm - bpmBefore) < 0.01f, "tempo held");
+
+	rig.in.kb = true;
+	rig.in.step = true;
+	rig.frames(2);
+	rig.turnTempo(0.9f);
+	rig.in.kb = false;
+	rig.in.step = false;
+	rig.frames(2);
+	check("KB + STEP + TEMPO picks a straight clock division",
+		rig.pattern.timing.clockForm == NoteForm::STRAIGHT, "straight");
+}
+
 static void testRecordStepWrite() {
 	Rig rig;
 	rig.startRecording();
@@ -489,6 +523,7 @@ int main() {
 	testModeSwitching();
 	testArrowTapsChangeOctave();
 	testHeldArrowDoesNotChangeOctave();
+	testClockDivisionAndSwingInterval();
 	testRecordStepWrite();
 	testRunStopLeavesRecordMode();
 	testGateLengthCarriesForward();

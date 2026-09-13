@@ -58,6 +58,51 @@ Normalling and special cases:
 - GATE input accepts 0 to +5 V and tolerates 10 V (p53).
 - Hardware outputs are 0 to +5 V for gates and clocks (p52).
 
+### Electrical specifications the manual states (p47-53)
+
+These are the numbers the audit checked the implementation against. Where a knob is described as
+"centred, and -5 V to +5 V sweeps the control end to end", 5 V equals half the control's travel.
+
+| Jack | Specification | Page |
+|---|---|---|
+| EXT. AUDIO | unity gain, expects 10 V peak to peak | 47 |
+| MIX CV | centred knob, -5 to +5 V crossfades VCO to EXT/noise | 47 |
+| VCA CV | **summed** with the ON/EG switch: 0 to +8 V in EG mode, -5 to +5 V in ON mode | 47 |
+| VCA out | +/-5 V typical, after the VOLUME attenuator | 47 |
+| NOISE out | +/-5 V typical | 47 |
+| VCF CUTOFF | centred knob and mod off, -5 to +5 V sweeps 20 Hz to 20 kHz | 48 |
+| VCF RES | centred knob, -5 to +5 V sweeps minimum to maximum | 48 |
+| VCF out | approximately +/-5 V maximum | 48 |
+| VCO 1V/OCT | -5 to +5 V sweeps 8 Hz to 8 kHz, ten octaves | 48 |
+| VCO LIN FM | accepts -5 to +5 V | 49 |
+| VCO MOD | overrides the EG normalled to the switch's up position | 49 |
+| VCO SAW / PULSE | +/-5 V | 49 |
+| LFO RATE | centred knob, -5 to +5 V sweeps 0.18 Hz to 190 Hz; maximum 600 Hz | 49 |
+| LFO TRI / SQ | +/-5 V | 50 |
+| MIX 1 / MIX 2 | normalled to 0 V and +5 V, DC coupled, accept -5 to +5 V | 50 |
+| VC MIX CTRL | centred knob, -5 to +5 V crossfades MIX 1 to MIX 2 | 50 |
+| VC MIX out | +/-5 V; with nothing patched the knob gives a fixed 0 to +5 V | 50 |
+| GATE in | 0 to +5 V, tolerant of 10 V | 53 |
+| EG out | **0 to +7.5 V** | 53 |
+| GATE out | +5 V | 53 |
+| Internal tempo | 20 to 300 BPM | 54 |
+
+### Clock division (p54)
+
+Separate from the swing interval, and set with the TEMPO knob rather than GLIDE:
+
+- hold (KB) + TEMPO for the eight dotted values
+- hold (STEP) + TEMPO for the eight triplet values
+- hold both + TEMPO for the eight straight values
+
+When synced to an external clock, TEMPO alone selects the straight values.
+
+### Not specified anywhere in the manual
+
+These are implementation choices, not hardware facts, and cannot be verified without the instrument:
+FREQUENCY knob range, linear FM depth, attack and decay times, accent depth, glide time range,
+the filter's saturation curve, and the default pattern length after initializing.
+
 ### ASSIGN output sources (p52)
 
 1 ACCENT · 2 CLOCK (default) · 3 CLOCK/2 · 4 CLOCK/4 · 5 STEP RAMP · 6 STEP SAW · 7 STEP TRIANGLE ·

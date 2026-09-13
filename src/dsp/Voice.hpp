@@ -18,6 +18,7 @@ struct Voice {
 	static constexpr float ACCENT_VCA_GAIN = 1.4f;
 	static constexpr float FREQUENCY_KNOB_OCTAVES = 2.f;
 	static constexpr float NOISE_LEVEL = 5.f;
+	static constexpr float EG_OUTPUT_VOLTS = 7.5f;
 
 	// Panel controls
 	float frequencyKnob = 0.5f;
@@ -123,7 +124,7 @@ private:
 		envelope.sustainEnabled = sustainIsOn;
 		envelope.setGate(gate);
 		envelope.process(dt);
-		egOut = 10.f * envelope.value;
+		egOut = EG_OUTPUT_VOLTS * envelope.value;
 	}
 
 	/** The VCO mod source switch selects the LFO, or the envelope with the VCO MOD jack overriding it. */
@@ -158,7 +159,7 @@ private:
 		noiseOut = NOISE_LEVEL * (random::uniform() * 2.f - 1.f);
 		const float secondary = extAudioConnected ? extAudio : noiseOut;
 		const float primary = vcoWaveIsPulse ? pulseOut : sawOut;
-		const float blend = clamp(mixKnob + mixCv / 5.f, 0.f, 1.f);
+		const float blend = clamp(mixKnob + mixCv / CV_VOLTS_FOR_HALF_RANGE, 0.f, 1.f);
 		return crossfade(primary, secondary, blend) / 5.f;
 	}
 
@@ -171,18 +172,22 @@ private:
 		const float volts = cutoffKnob * CUTOFF_KNOB_OCTAVES + cutoffCv + modVolts + accentVolts;
 		filter.setCutoff(LadderFilter::MIN_CUTOFF * std::pow(2.f, volts), sampleRate);
 
-		const float resonance = clamp(resonanceKnob + resonanceCv / 5.f, 0.f, 1.f);
+		const float resonance = clamp(resonanceKnob + resonanceCv / CV_VOLTS_FOR_HALF_RANGE, 0.f, 1.f);
 		filter.setResonance(vcfModeIsHighPass ? 0.f : resonance * MAX_RESONANCE_K);
 
 		filter.process(in);
 		vcfOut = 5.f * (vcfModeIsHighPass ? filter.highPass : filter.lowPass);
 	}
 
+	/** The VCA CV jack is summed with the ON/EG switch, so a patched 0 V leaves the level alone.
+	Full-scale modulation takes 0 to +8 V in EG mode and -5 to +5 V in ON mode (p47). */
 	void processAmplifier() {
-		const float envGain = vcaModeIsOn ? 1.f : envelope.value;
-		const float cvGain = vcaCvConnected ? clamp(vcaCv / 5.f, 0.f, 1.f) : 1.f;
+		const float base = vcaModeIsOn ? 1.f : envelope.value;
+		const float span = vcaModeIsOn ? VCA_CV_VOLTS_ON : VCA_CV_VOLTS_EG;
+		const float cv = vcaCvConnected ? vcaCv / span : 0.f;
+		const float gain = clamp(base + cv, 0.f, 1.f);
 		const float accentGain = accent ? ACCENT_VCA_GAIN : 1.f;
-		vcaOut = vcfOut * envGain * cvGain * accentGain * volumeKnob;
+		vcaOut = vcfOut * gain * accentGain * volumeKnob;
 	}
 
 	/** 20 Hz to 20 kHz is just under ten octaves of cutoff travel. */
@@ -190,6 +195,10 @@ private:
 	/** Self-oscillation lands near 3 o'clock on the resonance knob. */
 	static constexpr float MAX_RESONANCE_K = 4.5f;
 	static constexpr float LINEAR_FM_HZ_PER_VOLT = 200.f;
+	/** A centred knob reaches its limit at 5 V, so 5 V is half the control's travel. */
+	static constexpr float CV_VOLTS_FOR_HALF_RANGE = 10.f;
+	static constexpr float VCA_CV_VOLTS_EG = 8.f;
+	static constexpr float VCA_CV_VOLTS_ON = 5.f;
 };
 
 } // namespace m32

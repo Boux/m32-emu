@@ -16,6 +16,9 @@ struct LadderFilter {
 
 	float lowPass = 0.f;
 	float highPass = 0.f;
+	/** How hard the ladder clips. Lower values stay linear longer, so the self-oscillation
+	limit cycle settles at a larger amplitude before the saturation catches it. */
+	float drive = 0.22f;
 
 	void setCutoff(float hz, float sampleRate) {
 		const float nyquistLimit = 0.49f * sampleRate;
@@ -38,13 +41,16 @@ struct LadderFilter {
 		const float G4 = G2 * G2;
 		const float sigma = G2 * G * S1 + G2 * S2 + G * S3 + S4;
 
-		const float x = std::tanh(in * INPUT_DRIVE) * (1.f / INPUT_DRIVE);
-		const float y4 = (G4 * x + sigma) / (1.f + k * G4);
-		const float u = x - k * y4;
+		// The ladder's first transistor pair sees input minus feedback, so the saturation belongs
+		// there rather than on the input alone. Putting it inside the loop is also what keeps the
+		// filter bounded above self-oscillation instead of diverging.
+		const float estimate = (G4 * in + sigma) / (1.f + k * G4);
+		const float u = std::tanh((in - k * estimate) * drive) / drive;
 
 		const float y1 = G * u + S1;
 		const float y2 = G * y1 + S2;
 		const float y3 = G * y2 + S3;
+		const float y4 = G * y3 + S4;
 
 		s1 = 2.f * y1 - s1;
 		s2 = 2.f * y2 - s2;
@@ -61,9 +67,6 @@ struct LadderFilter {
 	}
 
 private:
-	/** Drive into the saturating stage. Sets how hard the ladder clips before self-oscillation. */
-	static constexpr float INPUT_DRIVE = 1.2f;
-
 	float G = 0.f;
 	float k = 0.f;
 	float s1 = 0.f, s2 = 0.f, s3 = 0.f, s4 = 0.f;
