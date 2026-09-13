@@ -19,22 +19,10 @@ I am not sure if everything works like it's supposed to, I've only done surface-
 
 ## Install
 
-### Easiest: download a build
+There are no prebuilt downloads yet, so you build it yourself. Pick your system below, then paste
+each block into a terminal in order.
 
-1. Go to the [Releases page](https://github.com/Boux/m32-emu/releases) and download the
-   `.vcvplugin` file for your system.
-2. Open VCV Rack. In the menu bar choose **Help → Open user folder**.
-3. Inside, open the folder whose name starts with `plugins-`.
-4. Drag the `.vcvplugin` file into it.
-5. Quit VCV Rack and open it again.
-
-The module appears in the browser under **M32**. Right-click empty rack space to open the browser.
-
-### Building it yourself
-
-You only need this if there is no release for your system.
-
-#### macOS
+### macOS
 
 1. Open **Terminal** (press `Cmd`+`Space`, type `Terminal`, press Enter).
 2. Install Apple's compiler. Paste this, press Enter, then click **Install** in the popup and wait:
@@ -58,9 +46,9 @@ You only need this if there is no release for your system.
    make install
    ```
 
-5. Quit VCV Rack and open it again.
+5. Quit VCV Rack and open it again. The module appears in the browser under **M32**.
 
-#### Windows
+### Windows
 
 1. Download and run the installer from [msys2.org](https://www.msys2.org). Accept the defaults.
 2. From the Start menu open **MSYS2 MINGW64**. It must be the one named MINGW64, not MSYS or UCRT64.
@@ -85,9 +73,9 @@ You only need this if there is no release for your system.
    make install
    ```
 
-6. Quit VCV Rack and open it again.
+6. Quit VCV Rack and open it again. The module appears in the browser under **M32**.
 
-#### Linux
+### Linux
 
 ```
 # Debian/Ubuntu
