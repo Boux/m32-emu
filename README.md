@@ -126,3 +126,25 @@ pressing another.
 
 Details in `docs/` — `behavior-spec.md` (what the manual says), `input-model.md` (the mouse
 translation), `not-implemented.md` (the full gap list).
+
+## License
+
+Released under the **GNU General Public License version 3 or later**. See [LICENSE](LICENSE).
+
+### Attribution
+
+The knobs, jacks, switches, screws and lights on the panel are the **VCV Rack Component Library
+graphics**, copyright © VCV, licensed under
+[CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/). They are loaded from your Rack
+installation and are not redistributed here. Because that licence is non-commercial, **this plugin
+must stay free of charge**. The same applies under VCV's Non-Commercial Plugin License Exception,
+which is what permits a plugin to link to Rack under its own licence.
+
+The panel layout and artwork in `res/` are original work for this project.
+
+The Mother-32 user manual is not included in this repository. It is Moog's copyrighted work and is
+available free from [moogmusic.com](https://www.moogmusic.com/downloads). The `docs/` folder cites it
+by page number but does not reproduce it.
+
+MOOG and MOTHER-32 are trademarks of Moog Music Inc. This project is not affiliated with, endorsed
+by, or supported by Moog Music.
