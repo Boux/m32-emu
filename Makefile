@@ -35,7 +35,11 @@ DISTRIBUTABLES += res
 DISTRIBUTABLES += $(wildcard LICENSE*)
 DISTRIBUTABLES += $(wildcard presets)
 
+ifneq ($(wildcard $(RACK_DIR)/plugin.mk),)
 include $(RACK_DIR)/plugin.mk
+else ifneq ($(MAKECMDGOALS),sdk)
+$(error Rack SDK not found in $(RACK_DIR). Run `make sdk` first)
+endif
 
 # Build number. Bumps on any source change so the panel shows which build is loaded.
 BUILD_INFO := src/generated/BuildInfo.hpp
